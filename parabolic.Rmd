@@ -1,52 +1,106 @@
 ---
 title: "Parabolic Art"
 author: "Mika Braginsky"
-output: html_document
+output: 
+  html_document: 
+    fig_height: 12
+    fig_width: 12
+    highlight: tango
+    theme: cosmo
 ---
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Libraries, constants, and plotting set-up.
+```{r, warning=FALSE, message=FALSE}
 library(ggplot2)
 library(dplyr)
 library(purrr)
 
-colors <- c(magenta = "#d33682",
-            red = "#dc322f",
-            orange = "#cb4b16",
-            yellow = "#b58900", 
-            green = "#859900",
-            cyan = "#2aa198",
-            blue = "#268bd2",
-            violet = "#6c71c4",
-            purple = "#993399")
-names(colors) <- NULL
-
 n <- 14
 cols <- seq(1, n/2)
 
-sector <- data.frame(
-  y = c(0, n, seq(n, 1)),
-  yend = c(0, 0, rep(0, n)),
-  x = c(n, 0, rep(0, n)),
-  xend = c(0, 0, seq(1, n)),
-  color = c(0, 0, c(cols, rev(cols)))
+colors <- c(
+  "#d33682",  # magenta
+  "#dc322f",  # red
+  "#cb4b16",  # orange
+  "#b58900",  # yellow
+  "#859900",  # green
+  "#2aa198",  # cyan
+  "#268bd2",  # blue
+  "#6c71c4",  # violet
+  "#993399"   # purple
 )
 
-diamond <- data.frame(
-  y = c(0, n, seq(n, 1), seq(n, 1), seq(-n, -1), seq(-n, -1)),
-  yend = c(0, -n, rep(rep(0, n), 4)),
-  x = c(n, 0, rep(rep(0, n), 4)),
-  xend = c(-n, 0, seq(1, n), seq(-1, -n), seq(1, n), seq(-1, -n)),
-  color = c(0, 0, rep(c(cols, rev(cols)), 4))
-)
+theme_blank <- function() {
+  theme(axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none",
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.background = element_blank())
+}
 
-square <- data.frame(
-  y = c(0, n, n, n, seq(n, 1), seq(n, 1)),
-  yend = c(0, 0, n, 0, rep(0, n), rep(n, n)),
-  x = c(n, 0, n, n, rep(0, n), rep(n, n)),
-  xend = c(0, 0, 0, n, seq(1, n), seq(1, n)),
-  color = c(0, 0, 0, 0, c(cols, rev(cols)), c(cols, rev(cols)))
-)
+plt <- function(data) {
+  ggplot() +
+    geom_segment(aes(x = x, xend = xend, y = y, yend = yend, color = factor(color)),
+                 data = data, size = 0.3) +
+    scale_color_manual(values = colors) +
+    coord_fixed() +
+    theme_blank()
+}
+```
 
+Basic building blocks.
+```{r}
+blank <- function() {
+  data.frame(y = numeric(0),
+             yend = numeric(0),
+             x = numeric(0),
+             xend = numeric(0),
+             color = numeric(0))
+}
+
+sector <- function() {
+  data.frame(
+    y = c(0, n, seq(n, 1)),
+    yend = c(0, 0, rep(0, n)),
+    x = c(n, 0, rep(0, n)),
+    xend = c(0, 0, seq(1, n)),
+    color = c(0, 0, c(cols, rev(cols))))
+}
+
+square <- function() {
+  data.frame(
+    y = c(0, n, n, n, seq(n, 1), seq(n, 1)),
+    yend = c(0, 0, n, 0, rep(0, n), rep(n, n)),
+    x = c(n, 0, n, n, rep(0, n), rep(n, n)),
+    xend = c(0, 0, 0, n, seq(1, n), seq(1, n)),
+    color = c(0, 0, 0, 0, c(cols, rev(cols)), c(cols, rev(cols))))
+}
+
+diamond <- function() {
+  data.frame(
+    y = c(0, n, seq(n, 1), seq(n, 1), seq(-n, -1), seq(-n, -1)),
+    yend = c(0, -n, rep(rep(0, n), 4)),
+    x = c(n, 0, rep(rep(0, n), 4)),
+    xend = c(-n, 0, seq(1, n), seq(-1, -n), seq(1, n), seq(-1, -n)),
+    color = c(0, 0, rep(c(cols, rev(cols)), 4)))
+}
+```
+
+```{r, echo=FALSE}
+sector() %>% plt()
+square() %>% plt()
+diamond() %>% plt()
+```
+
+Transformation functions.
+```{r}
 translate <- function(data, dx, dy) {
   mutate(data,
          x = x + dx, xend = xend + dx,
@@ -55,60 +109,116 @@ translate <- function(data, dx, dy) {
 
 rotate <- function(data, theta) {
   rot.coords <- matrix(c(cos(theta), -sin(theta), sin(theta), cos(theta)), ncol = 2,
-                dimnames = list(NULL, c("x", "y")))
+                       dimnames = list(NULL, c("x", "y")))
   rot.ends <- matrix(c(cos(theta), -sin(theta), sin(theta), cos(theta)), ncol = 2,
-                       dimnames = list(NULL, c("xend", "yend")))
-  rot.data <- bind_cols(as.data.frame(as.matrix(select(data, x, y)) %*% rot.coords),
-                        as.data.frame(as.matrix(select(data, xend, yend)) %*% rot.ends),
-                        select(data, color))
+                     dimnames = list(NULL, c("xend", "yend")))
+  bind_cols(as.data.frame(as.matrix(select(data, x, y)) %*% rot.coords),
+            as.data.frame(as.matrix(select(data, xend, yend)) %*% rot.ends),
+            select(data, color))
 }
 
-blank <- theme(axis.line = element_blank(),
-               axis.text.x = element_blank(),
-               axis.text.y = element_blank(),
-               axis.ticks = element_blank(),
-               axis.title.x = element_blank(),
-               axis.title.y = element_blank(),
-               legend.position = "none",
-               panel.background = element_blank(),
-               panel.border = element_blank(),
-               panel.grid.major = element_blank(),
-               panel.grid.minor = element_blank(),
-               plot.background = element_blank())
-
-plt <- function(data) {
-  ggplot() +
-    geom_segment(aes(x = x, xend = xend, y = y, yend = yend, color = factor(color)),
-                 data = data, size = 0.3) +
-    scale_color_manual(values = colors) +
-    coord_fixed() +
-    blank
+scale <- function(data, v) {
+  bind_cols(select(data, -color) * v, select(data, color))
 }
 
+map.trans <- function(data, x, y) {
+  bind_rows(map2(x, y, function(i, j) translate(data, i*n, j*n)))
+}
+
+sign_zp <- function(v) replace(sign(v), sign(v) == 0, 1)
+sign_zn <- function(v) replace(sign(v), sign(v) == 0, -1)
+increase_zp <- function(v, s) sign_zp(v) * (abs(v) + s)
+increase_zn <- function(v, s) sign_zn(v) * (abs(v) + s)
+```
+
+Building up more complex shapes out of building blocks.
+```{r}
 row <- function(data, k) {
+  if (k == 0) return(blank())
   bind_rows(map(seq(-k+1, k-1, by = 2), function(x) translate(data, x*n, 0)))
 }
 
 bottom.pyramid <- function(data, base) {
+  if (base == 0) return(blank())
   bind_rows(map(seq(1, base), function(w) translate(row(data, w), 0, (w-1)*n)))
 }
 
 top.pyramid <- function(data, base) {
+  if (base == 0) return(blank())
   bind_rows(map(seq(1, base), function(w) translate(row(data, w), 0, -(w-1)*n)))
 }
 
-
-meta.diamond <- function(data, maxw) {
-  bind_rows(bottom.pyramid(data, maxw), translate(top.pyramid(data, maxw-1), 0, (maxw+maxw-2)*n))
+meta.diamond <- function(maxw) {
+  bind_rows(bottom.pyramid(diamond(), maxw),
+            translate(top.pyramid(diamond(), maxw-1), 0, (maxw+maxw-2)*n)) %>%
+    translate(0, -(maxw-1)*n)
 }
 
-plt(sector)
-plt(square)
-plt(diamond)
-plt(rotate(diamond, pi/4))
-plt(row(diamond, 3))
-plt(top.pyramid(diamond, 2))
-plt(meta.diamond(diamond, 3))
-plt(meta.diamond(diamond, 5))
-#ggsave(plt(meta.diamond(diamond, 5)), file = "meta.diamond.5.pdf", width = 36, height = 36, dpi = 600)
+uni.meta.diamond <- function(k) {
+  meta.diamond(k) %>% scale(1/k)
+}
+```
+
+```{r, echo=FALSE}
+row(diamond(), 5) %>% plt()
+bottom.pyramid(diamond(), 5) %>% plt()
+top.pyramid(diamond(), 4) %>% plt()
+meta.diamond(5) %>% plt()
+```
+
+Fractals!
+```{r}
+fractal_layer <- function(level, depth, growth, direction) {
+  tx <- c(0, 0, 2, -2)*(level-1)
+  ty <- c(2, -2, 0, 0)*(level-1)
+  dx <- unlist(map(0:(depth-level),
+                   function(i) c(increase_zp(tx, i), increase_zn(tx, i))))
+  dy <- unlist(map(0:(depth-level),
+                   function(i) c(increase_zp(ty, i), increase_zn(ty, i))))
+  base <- switch(direction,
+                 max_in = level,
+                 max_out = depth - level + 1)
+  layer <- switch(growth,
+                  linear = map.trans(uni.meta.diamond(base), c(tx, dx), c(ty, dy)),
+                  exponential = map.trans(uni.meta.diamond(2^(base-1)), c(tx, dx), c(ty, dy)))
+  return(layer)
+}
+
+fractal <- function(depth, growth = "linear", direction = "max_in") {
+  x1 <- c(1, 1, -1, -1)
+  y1 <- c(1, -1, 1, -1)
+  inner_size <- switch(growth,
+                       linear = depth,
+                       exponential = 2^(depth-1))
+  start <- switch(direction,
+                  max_in = uni.meta.diamond(1),
+                  max_out = uni.meta.diamond(inner_size))
+  l1 <- map.trans(start,
+                  c(0, unlist(map(1:(depth-1), function(l) x1*l))),
+                  c(0, unlist(map(1:(depth-1), function(l) y1*l))))
+  ls <- bind_rows(map(2:depth, function(level) fractal_layer(level, depth, growth, direction)))
+  bind_rows(l1, ls)
+}
+
+circle_fractal_layer <- function(level) {
+  tx <- c(0, 0, 2, -2)*(level-1)
+  ty <- c(2, -2, 0, 0)*(level-1)
+  odd <- 2*level-3
+  dx <- rep(c(-(odd):-1, 1:(odd)), each=2)
+  dy <- rep(c(1:(odd), (odd):1), each=2) * rep(c(1, -1), 2*(odd))
+  map.trans(uni.meta.diamond(level), c(tx, dx), c(ty, dy))
+}
+
+circle_fractal <- function(depth) {
+  bind_rows(uni.meta.diamond(1),
+            bind_rows(map(2:depth, function(level) circle_fractal_layer(level))))
+}
+```
+
+```{r}
+fractal(4, "linear", "max_in") %>% plt()
+fractal(4, "exponential", "max_in") %>% plt()
+fractal(4, "linear", "max_out") %>% plt()
+fractal(4, "exponential", "max_out") %>% plt()
+circle_fractal(4) %>% plt()
 ```
