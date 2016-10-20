@@ -7,13 +7,21 @@ output:
     fig_width: 12
     highlight: tango
     theme: cosmo
+runtime: shiny
 ---
+
+```{r knitr_setup, echo=FALSE}
+library(knitr)
+opts_chunk$set(echo = FALSE, error = FALSE, message = FALSE, warning = FALSE,
+               cache = TRUE)
+```
 
 Libraries, constants, and plotting set-up.
 ```{r, warning=FALSE, message=FALSE}
 library(ggplot2)
 library(dplyr)
 library(purrr)
+library(langcog)
 
 n <- 14
 cols <- seq(1, n/2)
@@ -49,7 +57,8 @@ plt <- function(data) {
   ggplot() +
     geom_segment(aes(x = x, xend = xend, y = y, yend = yend, color = factor(color)),
                  data = data, size = 0.3) +
-    scale_color_manual(values = colors) +
+    scale_colour_solarized() +
+#    scale_color_manual(values = colors) +
     coord_fixed() +
     theme_blank()
 }
@@ -97,6 +106,26 @@ diamond <- function() {
 sector() %>% plt()
 square() %>% plt()
 diamond() %>% plt()
+```
+
+```{r, cache=FALSE, fig.width=6, fig.height=6}
+rotation_square <- function(k) {
+  data.frame(
+          #   L        R        B        T
+        y = c(0:(k-1), rep(0,k), 0:(k-1), rep(k,k)),
+     yend = c(rep(k,k), k:1, rep(0,k), k:1),
+        x = c(rep(0,k), k:1, rep(0,k), 0:(k-1)),
+     xend = c(0:(k-1), rep(k,k), k:1, rep(k,k)),
+#    color = rep(0, 4*k)
+    color = rep(0:(k-1), 4)
+  )
+}
+
+inputPanel(sliderInput("k", "", min = 9, max = 90, value = 18))
+
+renderPlot({
+  rotation_square(input$k) %>% plt()
+}, width = )
 ```
 
 Transformation functions.
